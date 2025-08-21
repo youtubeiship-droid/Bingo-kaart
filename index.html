@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactieve Bingo Kaart – Gedeeld via Firebase</title>
+  <style>
+    body{ font-family:sans-serif; background:#0b1220; color:#e5e7eb; display:flex; flex-direction:column; align-items:center; padding:20px; }
+    h1{ margin-bottom:8px }
+    .board{ display:grid; grid-template-columns:repeat(20, 40px); grid-gap:6px; margin-bottom:12px; pointer-events:auto; }
+    .cell{ width:40px; height:40px; display:grid; place-items:center; background:#111827; border-radius:6px; cursor:pointer; user-select:none; font-weight:700; }
+    .cell.marked{ background:#10b981; color:white; text-decoration:line-through; }
+    .controls{ display:flex; gap:8px; margin-bottom:12px; }
+    button{ padding:6px 12px; border-radius:6px; border:none; cursor:pointer; background:#22d3ee; color:#0b1220; font-weight:600; }
+  </style>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h1>Bingo Kaart – Gedeeld</h1>
+  <div class="controls">
+    <button id="reset">Reset alles</button>
+  </div>
+  <div id="board" class="board"></div>
+  <script>
+    // ====== VUL HIER JE EIGEN CONFIG IN ======
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLcQsIk-uCVejA867sKGJ4SCsVkZ4jKa8",
+      authDomain: "bingokaartrood.firebaseapp.com",
+      databaseURL: "https://bingokaartrood-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "bingokaartrood",
+      storageBucket: "bingokaartrood.appspot.com",
+      messagingSenderId: "1020592622628",
+      appId: "1:1020592622628:web:cea4e77ff5b93fdda29cb1"
+    };
+
+    // ====== Firebase initialiseren ======
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const COLS=20, ROWS=20;
+    const boardEl = document.getElementById('board');
+    const cells=[];
+
+    function key(c,r){ return String.fromCharCode(65+c)+(r+1); }
+
+    // Board bouwen
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        const k=key(c,r);
+        const cell=document.createElement('div');
+        cell.className='cell';
+        cell.textContent=k;
+        cell.dataset.key=k;
+        cell.addEventListener('click',()=>toggleCell(cell));
+        boardEl.appendChild(cell);
+        cells.push(cell);
+      }
+    }
+
+    let updatingFromFirebase = false;
+
+    // Toggle en Firebase update
+    function toggleCell(cell){
+      if(updatingFromFirebase) return; // voorkom loop
+      const marked = !cell.classList.contains('marked');
+      db.ref('bingo/rood/'+cell.dataset.key).set(marked);
+    }
+
+    // Listen realtime updates
+    db.ref('bingo/rood').on('value', snapshot => {
+      const data = snapshot.val() || {};
+      updatingFromFirebase = true;
+      cells.forEach(cell=>{
+        if(data[cell.dataset.key]) cell.classList.add('marked');
+        else cell.classList.remove('marked');
+      });
+      updatingFromFirebase = false;
+    });
+
+    // Reset knop
+    document.getElementById('reset').addEventListener('click',()=>{
+      if(confirm('Alles resetten?')){
+        const updates={};
+        cells.forEach(cell=>updates[cell.dataset.key]=false);
+        db.ref('bingo/rood').update(updates);
+      }
+    });
+  </script>
+</body>
+</html>
